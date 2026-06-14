@@ -39,15 +39,25 @@ pub struct ShotDataOptions {
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct GsProClubData {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub speed: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub angle_of_attack: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub face_to_target: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub lie: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub loft: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub speed_at_impact: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vertical_face_impact: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub horizontal_face_impact: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub closure_rate: Option<f64>,
 }
 
