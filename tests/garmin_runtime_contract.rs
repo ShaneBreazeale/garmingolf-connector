@@ -30,7 +30,10 @@ async fn tcp_runtime_responds_to_garmin_messages_and_publishes_shot() {
 
     client.write_all(br#"{"Type":"Handshake"}"#).await.unwrap();
     let mut buf = vec![0; 1024];
-    let n = client.read(&mut buf).await.unwrap();
+    let n = timeout(Duration::from_secs(2), client.read(&mut buf))
+        .await
+        .expect("handshake timeout")
+        .expect("handshake response");
     assert!(String::from_utf8_lossy(&buf[..n]).contains(r#""Type":"Handshake""#));
 
     client.write_all(br#"{"Type":"SetBallData","BallData":{"BallSpeed":151.58,"SpinAxis":353.3982,"TotalSpin":4721.59,"LaunchDirection":-5.0065,"LaunchAngle":17.7736}}"#).await.unwrap();
