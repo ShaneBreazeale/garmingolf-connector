@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use garmingolf_connector::config::AppConfig;
 use garmingolf_connector::core::AppState;
 use garmingolf_connector::garmin::runtime::spawn_listener;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
+use tokio::sync::Barrier;
 use tokio::time::{timeout, Duration};
 
 fn runtime_config() -> AppConfig {
@@ -89,4 +92,46 @@ async fn tcp_runtime_only_numbers_successfully_published_shots() {
         .expect("shot");
     assert_eq!(shot.shot_number, 1);
     assert_eq!(shot.ball.ball_speed, 120.0);
+}
+
+#[tokio::test]
+async fn tcp_runtime_assigns_unique_shot_numbers_across_clients() {
+    let config = runtime_config();
+    let state = AppState::new(&config);
+    let mut shots = state.subscribe_shots();
+    let addr = spawn_listener(config, state).await.expect("listener");
+    let client_count = 24;
+    let barrier = Arc::new(Barrier::new(client_count));
+    let mut clients = Vec::new();
+
+    for index in 0..client_count {
+        let barrier = barrier.clone();
+        clients.push(tokio::spawn(async move {
+            let mut client = TcpStream::connect(addr).await.expect("client");
+            let ball_speed = 100.0 + index as f64;
+            let set_ball_data = format!(
+                r#"{{"Type":"SetBallData","BallData":{{"BallSpeed":{ball_speed},"SpinAxis":10.0,"TotalSpin":3000.0,"LaunchDirection":1.0,"LaunchAngle":12.0}}}}"#
+            );
+            client.write_all(set_ball_data.as_bytes()).await.unwrap();
+            barrier.wait().await;
+            client.write_all(br#"{"Type":"SendShot"}"#).await.unwrap();
+        }));
+    }
+
+    let mut shot_numbers = Vec::new();
+    for _ in 0..client_count {
+        let shot = timeout(Duration::from_secs(2), shots.recv())
+            .await
+            .expect("shot timeout")
+            .expect("shot");
+        shot_numbers.push(shot.shot_number);
+    }
+    shot_numbers.sort_unstable();
+
+    for client in clients {
+        client.await.expect("client task");
+    }
+
+    let expected = (1..=client_count as u64).collect::<Vec<_>>();
+    assert_eq!(shot_numbers, expected);
 }
