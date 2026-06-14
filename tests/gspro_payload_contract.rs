@@ -60,3 +60,44 @@ fn omits_missing_optional_club_metrics() {
     assert!(!club_data.contains_key("SpeedAtImpact"));
     assert!(!club_data.contains_key("HorizontalFaceImpact"));
 }
+
+#[tokio::test]
+async fn runtime_forwards_published_shot_to_tcp_server() {
+    use garmingolf_connector::config::AppConfig;
+    use garmingolf_connector::core::{AppState, ShotEvent};
+    use garmingolf_connector::gspro::runtime::spawn_forwarder;
+    use tokio::io::AsyncReadExt;
+    use tokio::net::TcpListener;
+    use tokio::time::{timeout, Duration};
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let config = AppConfig {
+        garmin_host: "127.0.0.1".into(),
+        garmin_port: 0,
+        api_host: "127.0.0.1".into(),
+        api_port: 0,
+        gspro_enabled: true,
+        gspro_host: addr.ip().to_string(),
+        gspro_port: addr.port(),
+        nova_ws_enabled: false,
+        nova_ws_host: "127.0.0.1".into(),
+        nova_ws_port: 8765,
+    };
+    let state = AppState::new(&config);
+    spawn_forwarder(config, state.clone()).await;
+
+    let (mut socket, _) = timeout(Duration::from_secs(2), listener.accept())
+        .await
+        .expect("accept timeout")
+        .unwrap();
+    state.publish_shot(ShotEvent::test_shot(99)).await;
+
+    let mut buf = vec![0; 2048];
+    let n = timeout(Duration::from_secs(2), socket.read(&mut buf))
+        .await
+        .expect("read timeout")
+        .unwrap();
+    let text = String::from_utf8_lossy(&buf[..n]);
+    assert!(text.contains(r#""ShotNumber":99"#));
+}
