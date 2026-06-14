@@ -140,9 +140,10 @@ async fn handle_message(
             write_response(stream, ack_json(subtype)).await
         }
         GarminIncoming::SendShot => {
-            let shot_number = shot_counter.fetch_add(1, Ordering::SeqCst);
+            let shot_number = shot_counter.load(Ordering::SeqCst);
             let shot = assembler.build_shot(shot_number)?;
             state.publish_shot(shot).await;
+            shot_counter.fetch_add(1, Ordering::SeqCst);
             write_response(stream, ack_json("SendShot")).await
         }
         GarminIncoming::Disconnect | GarminIncoming::Pong | GarminIncoming::Unknown(_) => Ok(()),

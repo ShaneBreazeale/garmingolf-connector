@@ -68,3 +68,25 @@ async fn tcp_runtime_handles_multiple_json_messages_in_one_read() {
     assert_eq!(shot.ball.ball_speed, 120.0);
     assert_eq!(shot.ball.spin_axis, -10.0);
 }
+
+#[tokio::test]
+async fn tcp_runtime_only_numbers_successfully_published_shots() {
+    let config = runtime_config();
+    let state = AppState::new(&config);
+    let mut shots = state.subscribe_shots();
+    let addr = spawn_listener(config, state).await.expect("listener");
+    let mut client = TcpStream::connect(addr).await.expect("client");
+
+    client.write_all(br#"{"Type":"SendShot"}"#).await.unwrap();
+    client
+        .write_all(br#"{"Type":"SetBallData","BallData":{"BallSpeed":120.0,"SpinAxis":10.0,"TotalSpin":3000.0,"LaunchDirection":1.0,"LaunchAngle":12.0}}{"Type":"SendShot"}"#)
+        .await
+        .unwrap();
+
+    let shot = timeout(Duration::from_secs(2), shots.recv())
+        .await
+        .expect("shot timeout")
+        .expect("shot");
+    assert_eq!(shot.shot_number, 1);
+    assert_eq!(shot.ball.ball_speed, 120.0);
+}
