@@ -26,14 +26,14 @@ pub struct CliArgs {
     pub api_host: Option<String>,
     #[arg(long)]
     pub api_port: Option<u16>,
-    #[arg(long)]
-    pub enable_gspro: bool,
+    #[arg(long, num_args = 0..=1, default_missing_value = "true", require_equals = true)]
+    pub enable_gspro: Option<bool>,
     #[arg(long)]
     pub gspro_host: Option<String>,
     #[arg(long)]
     pub gspro_port: Option<u16>,
-    #[arg(long)]
-    pub enable_nova_ws: bool,
+    #[arg(long, num_args = 0..=1, default_missing_value = "true", require_equals = true)]
+    pub enable_nova_ws: Option<bool>,
     #[arg(long)]
     pub nova_ws_host: Option<String>,
     #[arg(long)]
@@ -135,8 +135,8 @@ impl AppConfig {
         if let Some(value) = args.api_port {
             config.api_port = value;
         }
-        if args.enable_gspro {
-            config.gspro_enabled = true;
+        if let Some(value) = args.enable_gspro {
+            config.gspro_enabled = value;
         }
         if let Some(value) = args.gspro_host {
             config.gspro_host = value;
@@ -144,8 +144,8 @@ impl AppConfig {
         if let Some(value) = args.gspro_port {
             config.gspro_port = value;
         }
-        if args.enable_nova_ws {
-            config.nova_ws_enabled = true;
+        if let Some(value) = args.enable_nova_ws {
+            config.nova_ws_enabled = value;
         }
         if let Some(value) = args.nova_ws_host {
             config.nova_ws_host = value;

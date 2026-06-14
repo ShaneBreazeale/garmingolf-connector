@@ -6,6 +6,8 @@ fn default_config_matches_existing_connector_ports() {
     let args = CliArgs::try_parse_from(["garmingolf-connector"]).expect("valid defaults");
     assert_eq!(args.api_port, None);
     assert_eq!(args.api_host, None);
+    assert_eq!(args.enable_gspro, None);
+    assert_eq!(args.enable_nova_ws, None);
 
     let config =
         AppConfig::from_cli_and_env(args, std::iter::empty::<(&str, &str)>()).expect("config");
@@ -41,6 +43,25 @@ fn cli_values_equal_to_defaults_still_override_env_values() {
 
     assert_eq!(config.api_host, "127.0.0.1");
     assert_eq!(config.api_port, 5178);
+}
+
+#[test]
+fn explicit_false_boolean_cli_values_override_env_true() {
+    let env = [
+        ("GARMINGOLF_ENABLE_GSPRO", "true"),
+        ("GARMINGOLF_ENABLE_NOVA_WS", "true"),
+    ];
+    let args = CliArgs::try_parse_from([
+        "garmingolf-connector",
+        "--enable-gspro=false",
+        "--enable-nova-ws=false",
+    ])
+    .expect("valid cli");
+
+    let config = AppConfig::from_cli_and_env(args, env).expect("config");
+
+    assert!(!config.gspro_enabled);
+    assert!(!config.nova_ws_enabled);
 }
 
 #[test]
