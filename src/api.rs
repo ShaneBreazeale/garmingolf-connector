@@ -77,6 +77,7 @@ pub async fn serve(config: AppConfig, app: AppState) -> Result<SocketAddr, Strin
     let addr = listener
         .local_addr()
         .map_err(|err| format!("failed to read API server address: {err}"))?;
+    app.set_api_port(addr.port()).await;
 
     tokio::spawn(async move {
         if let Err(err) = axum::serve(listener, router(config, app)).await {

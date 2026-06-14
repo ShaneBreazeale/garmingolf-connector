@@ -1,6 +1,6 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use garmingolf_connector::api::router;
+use garmingolf_connector::api::{router, serve};
 use garmingolf_connector::config::AppConfig;
 use garmingolf_connector::core::AppState;
 use tower::ServiceExt;
@@ -52,6 +52,17 @@ async fn status_returns_json_status() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn serve_updates_status_with_actual_bound_api_port() {
+    let config = test_config();
+    let state = AppState::new(&config);
+
+    let addr = serve(config, state.clone()).await.expect("api server");
+
+    assert_ne!(addr.port(), 0);
+    assert_eq!(state.status().await.api_port, addr.port());
 }
 
 #[tokio::test]

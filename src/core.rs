@@ -164,6 +164,10 @@ impl AppState {
         self.inner.read().await.clone()
     }
 
+    pub async fn set_api_port(&self, port: u16) {
+        self.inner.write().await.api_port = port;
+    }
+
     pub fn subscribe_shots(&self) -> broadcast::Receiver<ShotEvent> {
         self.shots.subscribe()
     }

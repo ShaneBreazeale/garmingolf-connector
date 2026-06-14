@@ -6,7 +6,7 @@ use garmingolf_connector::garmin::runtime::spawn_listener;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::Barrier;
-use tokio::time::{sleep, timeout, Duration};
+use tokio::time::{timeout, Duration};
 
 fn runtime_config() -> AppConfig {
     AppConfig {
@@ -161,8 +161,17 @@ async fn tcp_runtime_rejects_incomplete_message_that_exceeds_buffer_limit() {
         .await
         .unwrap();
 
-    sleep(Duration::from_millis(150)).await;
-    let status = state.status().await;
+    let status = timeout(Duration::from_secs(2), async {
+        loop {
+            let status = state.status().await;
+            if status.garmin.malformed_message_count == 1 {
+                return status;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("oversized buffer status timeout");
     assert_eq!(status.garmin.malformed_message_count, 1);
     let error = status.garmin.last_error.expect("last error");
     assert!(
