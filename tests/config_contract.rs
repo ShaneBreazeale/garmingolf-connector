@@ -3,11 +3,12 @@ use garmingolf_connector::config::{AppConfig, CliArgs};
 
 #[test]
 fn default_config_matches_existing_connector_ports() {
-    let config = AppConfig::from_cli_and_env(
-        CliArgs::try_parse_from(["garmingolf-connector"]).expect("valid defaults"),
-        std::iter::empty::<(&str, &str)>(),
-    )
-    .expect("config");
+    let args = CliArgs::try_parse_from(["garmingolf-connector"]).expect("valid defaults");
+    assert_eq!(args.api_port, None);
+    assert_eq!(args.api_host, None);
+
+    let config =
+        AppConfig::from_cli_and_env(args, std::iter::empty::<(&str, &str)>()).expect("config");
 
     assert_eq!(config.garmin_host, "0.0.0.0");
     assert_eq!(config.garmin_port, 2483);
@@ -19,6 +20,38 @@ fn default_config_matches_existing_connector_ports() {
     assert!(!config.nova_ws_enabled);
     assert_eq!(config.nova_ws_host, "127.0.0.1");
     assert_eq!(config.nova_ws_port, 8765);
+}
+
+#[test]
+fn cli_values_equal_to_defaults_still_override_env_values() {
+    let env = [
+        ("GARMINGOLF_API_HOST", "192.0.2.21"),
+        ("GARMINGOLF_API_PORT", "6000"),
+    ];
+    let args = CliArgs::try_parse_from([
+        "garmingolf-connector",
+        "--api-host",
+        "127.0.0.1",
+        "--api-port",
+        "5178",
+    ])
+    .expect("valid cli");
+
+    let config = AppConfig::from_cli_and_env(args, env).expect("config");
+
+    assert_eq!(config.api_host, "127.0.0.1");
+    assert_eq!(config.api_port, 5178);
+}
+
+#[test]
+fn invalid_socket_hosts_are_rejected_during_config_construction() {
+    let result = AppConfig::from_cli_and_env(
+        CliArgs::try_parse_from(["garmingolf-connector"]).expect("valid defaults"),
+        [("GARMINGOLF_API_HOST", "localhost")],
+    );
+
+    assert!(result.is_err());
+    assert!(result.expect_err("invalid config").contains("api address"));
 }
 
 #[test]
