@@ -35,7 +35,8 @@ pub async fn spawn_forwarder(config: AppConfig, state: AppState) {
                     while let Ok(shot) = shots.recv().await {
                         let payload = GsProShotPayload::from_shot(&shot, true);
                         match serde_json::to_vec(&payload) {
-                            Ok(bytes) => {
+                            Ok(mut bytes) => {
+                                bytes.push(b'\n');
                                 if let Err(err) = socket.write_all(&bytes).await {
                                     state
                                         .update_gspro(|status| {

@@ -99,5 +99,9 @@ async fn runtime_forwards_published_shot_to_tcp_server() {
         .expect("read timeout")
         .unwrap();
     let text = String::from_utf8_lossy(&buf[..n]);
+    assert!(
+        text.ends_with('\n'),
+        "forwarded GSPro payload should be newline-delimited: {text:?}"
+    );
     assert!(text.contains(r#""ShotNumber":99"#));
 }

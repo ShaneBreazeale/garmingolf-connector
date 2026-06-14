@@ -6,7 +6,7 @@ use garmingolf_connector::garmin::runtime::spawn_listener;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::Barrier;
-use tokio::time::{timeout, Duration};
+use tokio::time::{sleep, timeout, Duration};
 
 fn runtime_config() -> AppConfig {
     AppConfig {
@@ -21,6 +21,12 @@ fn runtime_config() -> AppConfig {
         nova_ws_host: "127.0.0.1".into(),
         nova_ws_port: 8765,
     }
+}
+
+fn set_ball_data(ball_speed: f64) -> String {
+    format!(
+        r#"{{"Type":"SetBallData","BallData":{{"BallSpeed":{ball_speed},"SpinAxis":10.0,"TotalSpin":3000.0,"LaunchDirection":1.0,"LaunchAngle":12.0}}}}"#
+    )
 }
 
 #[tokio::test]
@@ -92,6 +98,77 @@ async fn tcp_runtime_only_numbers_successfully_published_shots() {
         .expect("shot");
     assert_eq!(shot.shot_number, 1);
     assert_eq!(shot.ball.ball_speed, 120.0);
+}
+
+#[tokio::test]
+async fn tcp_runtime_consumes_ball_data_after_publishing_shot() {
+    let config = runtime_config();
+    let state = AppState::new(&config);
+    let mut shots = state.subscribe_shots();
+    let addr = spawn_listener(config, state).await.expect("listener");
+    let mut client = TcpStream::connect(addr).await.expect("client");
+
+    client
+        .write_all(set_ball_data(120.0).as_bytes())
+        .await
+        .unwrap();
+    client.write_all(br#"{"Type":"SendShot"}"#).await.unwrap();
+
+    let shot = timeout(Duration::from_secs(2), shots.recv())
+        .await
+        .expect("first shot timeout")
+        .expect("first shot");
+    assert_eq!(shot.shot_number, 1);
+    assert_eq!(shot.ball.ball_speed, 120.0);
+
+    client.write_all(br#"{"Type":"SendShot"}"#).await.unwrap();
+    assert!(
+        timeout(Duration::from_millis(150), shots.recv())
+            .await
+            .is_err(),
+        "SendShot without fresh SetBallData should not publish a duplicate shot"
+    );
+
+    client
+        .write_all(set_ball_data(121.0).as_bytes())
+        .await
+        .unwrap();
+    client.write_all(br#"{"Type":"SendShot"}"#).await.unwrap();
+
+    let shot = timeout(Duration::from_secs(2), shots.recv())
+        .await
+        .expect("second shot timeout")
+        .expect("second shot");
+    assert_eq!(shot.shot_number, 2);
+    assert_eq!(shot.ball.ball_speed, 121.0);
+}
+
+#[tokio::test]
+async fn tcp_runtime_rejects_incomplete_message_that_exceeds_buffer_limit() {
+    let config = runtime_config();
+    let state = AppState::new(&config);
+    let addr = spawn_listener(config, state.clone())
+        .await
+        .expect("listener");
+    let mut client = TcpStream::connect(addr).await.expect("client");
+
+    let oversized_incomplete = format!(
+        r#"{{"Type":"SetBallData","Pad":"{}""#,
+        "x".repeat(70 * 1024)
+    );
+    client
+        .write_all(oversized_incomplete.as_bytes())
+        .await
+        .unwrap();
+
+    sleep(Duration::from_millis(150)).await;
+    let status = state.status().await;
+    assert_eq!(status.garmin.malformed_message_count, 1);
+    let error = status.garmin.last_error.expect("last error");
+    assert!(
+        error.contains("buffer") || error.contains("too large") || error.contains("overflow"),
+        "expected buffer overflow error, got {error:?}"
+    );
 }
 
 #[tokio::test]

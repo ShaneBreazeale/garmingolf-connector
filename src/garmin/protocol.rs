@@ -169,6 +169,10 @@ impl ShotAssembler {
             raw_club_data: raw_club,
         })
     }
+
+    pub fn clear_ball_data_after_publish(&mut self) {
+        self.ball = None;
+    }
 }
 
 fn convert_spin_axis(mut spin_axis: f64) -> f64 {

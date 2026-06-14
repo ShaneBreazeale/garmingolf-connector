@@ -20,6 +20,8 @@ use crate::{
     },
 };
 
+const GARMIN_MAX_MESSAGE_BUFFER_BYTES: usize = 64 * 1024;
+
 pub async fn spawn_listener(config: AppConfig, state: AppState) -> Result<SocketAddr, String> {
     let listener = TcpListener::bind(config.garmin_addr())
         .await
@@ -119,6 +121,19 @@ async fn handle_client(mut stream: TcpStream, state: AppState, shot_counter: Arc
                 Err(err) => record_malformed(&state, err).await,
             }
         }
+
+        if message_buf.len() > GARMIN_MAX_MESSAGE_BUFFER_BYTES {
+            record_malformed(
+                &state,
+                format!(
+                    "Garmin message buffer too large: {} bytes exceeds {} byte limit",
+                    message_buf.len(),
+                    GARMIN_MAX_MESSAGE_BUFFER_BYTES
+                ),
+            )
+            .await;
+            break;
+        }
     }
 }
 
@@ -144,6 +159,7 @@ async fn handle_message(
             let shot_number = shot_counter.fetch_add(1, Ordering::SeqCst);
             let shot = assembler.build_shot(shot_number)?;
             state.publish_shot(shot).await;
+            assembler.clear_ball_data_after_publish();
             write_response(stream, ack_json("SendShot")).await
         }
         GarminIncoming::Disconnect | GarminIncoming::Pong | GarminIncoming::Unknown(_) => Ok(()),
