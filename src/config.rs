@@ -4,28 +4,39 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+const DEFAULT_GARMIN_HOST: &str = "0.0.0.0";
+const DEFAULT_GARMIN_PORT: u16 = 2483;
+const DEFAULT_API_HOST: &str = "127.0.0.1";
+const DEFAULT_API_PORT: u16 = 5178;
+const DEFAULT_GSPRO_ENABLED: bool = false;
+const DEFAULT_GSPRO_HOST: &str = "127.0.0.1";
+const DEFAULT_GSPRO_PORT: u16 = 921;
+const DEFAULT_NOVA_WS_ENABLED: bool = false;
+const DEFAULT_NOVA_WS_HOST: &str = "127.0.0.1";
+const DEFAULT_NOVA_WS_PORT: u16 = 8765;
+
 #[derive(Debug, Clone, Parser)]
 #[command(version, about = "Garmin Golf launch monitor bridge", long_about = None)]
 pub struct CliArgs {
-    #[arg(long, env = "GARMINGOLF_GARMIN_HOST", default_value = "0.0.0.0")]
+    #[arg(long, env = "GARMINGOLF_GARMIN_HOST", default_value = DEFAULT_GARMIN_HOST)]
     pub garmin_host: String,
-    #[arg(long, env = "GARMINGOLF_GARMIN_PORT", default_value_t = 2483)]
+    #[arg(long, env = "GARMINGOLF_GARMIN_PORT", default_value_t = DEFAULT_GARMIN_PORT)]
     pub garmin_port: u16,
-    #[arg(long, env = "GARMINGOLF_API_HOST", default_value = "127.0.0.1")]
+    #[arg(long, env = "GARMINGOLF_API_HOST", default_value = DEFAULT_API_HOST)]
     pub api_host: String,
-    #[arg(long, env = "GARMINGOLF_API_PORT", default_value_t = 5178)]
+    #[arg(long, env = "GARMINGOLF_API_PORT", default_value_t = DEFAULT_API_PORT)]
     pub api_port: u16,
-    #[arg(long, env = "GARMINGOLF_ENABLE_GSPRO", default_value_t = false)]
+    #[arg(long, env = "GARMINGOLF_ENABLE_GSPRO", default_value_t = DEFAULT_GSPRO_ENABLED)]
     pub enable_gspro: bool,
-    #[arg(long, env = "GARMINGOLF_GSPRO_HOST", default_value = "127.0.0.1")]
+    #[arg(long, env = "GARMINGOLF_GSPRO_HOST", default_value = DEFAULT_GSPRO_HOST)]
     pub gspro_host: String,
-    #[arg(long, env = "GARMINGOLF_GSPRO_PORT", default_value_t = 921)]
+    #[arg(long, env = "GARMINGOLF_GSPRO_PORT", default_value_t = DEFAULT_GSPRO_PORT)]
     pub gspro_port: u16,
-    #[arg(long, env = "GARMINGOLF_ENABLE_NOVA_WS", default_value_t = false)]
+    #[arg(long, env = "GARMINGOLF_ENABLE_NOVA_WS", default_value_t = DEFAULT_NOVA_WS_ENABLED)]
     pub enable_nova_ws: bool,
-    #[arg(long, env = "GARMINGOLF_NOVA_WS_HOST", default_value = "127.0.0.1")]
+    #[arg(long, env = "GARMINGOLF_NOVA_WS_HOST", default_value = DEFAULT_NOVA_WS_HOST)]
     pub nova_ws_host: String,
-    #[arg(long, env = "GARMINGOLF_NOVA_WS_PORT", default_value_t = 8765)]
+    #[arg(long, env = "GARMINGOLF_NOVA_WS_PORT", default_value_t = DEFAULT_NOVA_WS_PORT)]
     pub nova_ws_port: u16,
 }
 
@@ -78,16 +89,36 @@ impl AppConfig {
             let key = key.as_ref();
             let value = value.as_ref();
             match key {
-                "GARMINGOLF_GARMIN_PORT" if config.garmin_port == 2483 => {
+                "GARMINGOLF_GARMIN_HOST" if config.garmin_host == DEFAULT_GARMIN_HOST => {
+                    config.garmin_host = value.to_string();
+                }
+                "GARMINGOLF_GARMIN_PORT" if config.garmin_port == DEFAULT_GARMIN_PORT => {
                     config.garmin_port = parse_port(key, value)?;
                 }
-                "GARMINGOLF_API_PORT" if config.api_port == 5178 => {
+                "GARMINGOLF_API_HOST" if config.api_host == DEFAULT_API_HOST => {
+                    config.api_host = value.to_string();
+                }
+                "GARMINGOLF_API_PORT" if config.api_port == DEFAULT_API_PORT => {
                     config.api_port = parse_port(key, value)?;
                 }
-                "GARMINGOLF_ENABLE_NOVA_WS" if !config.nova_ws_enabled => {
+                "GARMINGOLF_ENABLE_GSPRO" if config.gspro_enabled == DEFAULT_GSPRO_ENABLED => {
+                    config.gspro_enabled = parse_bool(key, value)?;
+                }
+                "GARMINGOLF_GSPRO_HOST" if config.gspro_host == DEFAULT_GSPRO_HOST => {
+                    config.gspro_host = value.to_string();
+                }
+                "GARMINGOLF_GSPRO_PORT" if config.gspro_port == DEFAULT_GSPRO_PORT => {
+                    config.gspro_port = parse_port(key, value)?;
+                }
+                "GARMINGOLF_ENABLE_NOVA_WS"
+                    if config.nova_ws_enabled == DEFAULT_NOVA_WS_ENABLED =>
+                {
                     config.nova_ws_enabled = parse_bool(key, value)?;
                 }
-                "GARMINGOLF_NOVA_WS_PORT" if config.nova_ws_port == 8765 => {
+                "GARMINGOLF_NOVA_WS_HOST" if config.nova_ws_host == DEFAULT_NOVA_WS_HOST => {
+                    config.nova_ws_host = value.to_string();
+                }
+                "GARMINGOLF_NOVA_WS_PORT" if config.nova_ws_port == DEFAULT_NOVA_WS_PORT => {
                     config.nova_ws_port = parse_port(key, value)?;
                 }
                 _ => {}
