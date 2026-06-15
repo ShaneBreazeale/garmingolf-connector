@@ -26,12 +26,6 @@ jobs:
             asset_name: garmingolf-connector-linux-x86_64
             archive_ext: tar.gz
             binary_name: garmingolf-connector
-          - name: macos-x86_64
-            os: macos-13
-            target: x86_64-apple-darwin
-            asset_name: garmingolf-connector-macos-x86_64
-            archive_ext: tar.gz
-            binary_name: garmingolf-connector
           - name: macos-aarch64
             os: macos-latest
             target: aarch64-apple-darwin
