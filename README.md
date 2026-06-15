@@ -15,16 +15,29 @@ The connector listens for Garmin Golf's E6 Connect / Play on PC TCP stream, norm
 
 ## Requirements
 
-- Rust 1.77 or newer
 - A Garmin Golf launch monitor mode that can send E6 Connect / Play on PC data
 - Optional: GSPro running with its OpenAPI connector enabled
 
 ## Quickstart
 
-Run the connector with the default Garmin and API ports:
+Download the release archive for your OS from the [GitHub Releases page](https://github.com/ShaneBreazeale/garmingolf-connector/releases):
+
+- Linux x86_64: `garmingolf-connector-linux-x86_64.tar.gz`
+- macOS Apple Silicon: `garmingolf-connector-macos-aarch64.tar.gz`
+- Windows x86_64: `garmingolf-connector-windows-x86_64.zip`
+
+Extract the archive, then run the connector with the default Garmin and API ports.
+
+Linux and macOS:
 
 ```sh
-cargo run --bin garmingolf-connector
+./garmingolf-connector
+```
+
+Windows PowerShell:
+
+```powershell
+.\garmingolf-connector.exe
 ```
 
 The default listeners are:
@@ -39,10 +52,12 @@ Open Garmin Golf on your phone, choose E6 Connect / Play on PC mode, then set th
 
 ## Common Commands
 
+The examples below use the Linux/macOS executable form. On Windows, use `.\garmingolf-connector.exe` with the same flags.
+
 Run on a custom Garmin port:
 
 ```sh
-cargo run --bin garmingolf-connector -- \
+./garmingolf-connector \
   --garmin-host 0.0.0.0 \
   --garmin-port 2483
 ```
@@ -50,7 +65,7 @@ cargo run --bin garmingolf-connector -- \
 Run the API server on a custom port:
 
 ```sh
-cargo run --bin garmingolf-connector -- \
+./garmingolf-connector \
   --api-host 127.0.0.1 \
   --api-port 5178
 ```
@@ -58,7 +73,7 @@ cargo run --bin garmingolf-connector -- \
 Ask the OS for any free API port:
 
 ```sh
-cargo run --bin garmingolf-connector -- --api-port 0
+./garmingolf-connector --api-port 0
 ```
 
 The CLI prints the actual bound URL at startup.
@@ -68,7 +83,7 @@ The CLI prints the actual bound URL at startup.
 Enable GSPro forwarding when GSPro is listening for OpenAPI shot JSON:
 
 ```sh
-cargo run --bin garmingolf-connector -- \
+./garmingolf-connector \
   --enable-gspro \
   --gspro-host 127.0.0.1 \
   --gspro-port 921
@@ -81,7 +96,7 @@ Forwarded GSPro payloads are newline-delimited JSON and include ball data plus o
 Enable the WebSocket feed:
 
 ```sh
-cargo run --bin garmingolf-connector -- \
+./garmingolf-connector \
   --enable-nova-ws \
   --nova-ws-host 127.0.0.1 \
   --nova-ws-port 8765
@@ -153,8 +168,8 @@ CLI flags override environment variables. Environment variables override built-i
 Boolean flags can be passed without a value or with an explicit value:
 
 ```sh
-cargo run --bin garmingolf-connector -- --enable-gspro
-cargo run --bin garmingolf-connector -- --enable-gspro=false
+./garmingolf-connector --enable-gspro
+./garmingolf-connector --enable-gspro=false
 ```
 
 ## Library Use
@@ -171,6 +186,14 @@ Public modules:
 - `nova`: WebSocket shot stream
 
 ## Development
+
+Rust 1.77 or newer is required only for building from source.
+
+Run from source:
+
+```sh
+cargo run --bin garmingolf-connector
+```
 
 Run the test suite:
 
