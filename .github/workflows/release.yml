@@ -1,0 +1,115 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset_name: garmingolf-connector-linux-x86_64
+            archive_ext: tar.gz
+            binary_name: garmingolf-connector
+          - name: macos-x86_64
+            os: macos-13
+            target: x86_64-apple-darwin
+            asset_name: garmingolf-connector-macos-x86_64
+            archive_ext: tar.gz
+            binary_name: garmingolf-connector
+          - name: macos-aarch64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            asset_name: garmingolf-connector-macos-aarch64
+            archive_ext: tar.gz
+            binary_name: garmingolf-connector
+          - name: windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset_name: garmingolf-connector-windows-x86_64
+            archive_ext: zip
+            binary_name: garmingolf-connector.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Test
+        run: cargo test --locked
+
+      - name: Build release binary
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Package Unix release
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_dir="dist/${{ matrix.asset_name }}"
+          mkdir -p "$package_dir"
+          cp "target/${{ matrix.target }}/release/${{ matrix.binary_name }}" "$package_dir/"
+          cp README.md "$package_dir/"
+          tar -czf "dist/${{ matrix.asset_name }}.${{ matrix.archive_ext }}" -C dist "${{ matrix.asset_name }}"
+
+      - name: Package Windows release
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $packageDir = "dist/${{ matrix.asset_name }}"
+          New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/${{ matrix.binary_name }}" "$packageDir/"
+          Copy-Item "README.md" "$packageDir/"
+          Compress-Archive -Path "$packageDir/*" -DestinationPath "dist/${{ matrix.asset_name }}.${{ matrix.archive_ext }}" -Force
+
+      - name: Upload release package
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.asset_name }}
+          path: dist/${{ matrix.asset_name }}.${{ matrix.archive_ext }}
+          if-no-files-found: error
+          archive: false
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: "*"
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes
